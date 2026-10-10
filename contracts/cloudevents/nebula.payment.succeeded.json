@@ -1,0 +1,17 @@
+{
+  "specversion": "1.0",
+  "type": "nebula.payment.succeeded",
+  "source": "/payment-orchestrator",
+  "id": "f1a2b3c4-5678-90ab-cdef-111111111111",
+  "time": "2026-10-10T10:00:05Z",
+  "datacontenttype": "application/json",
+  "idempotency_key": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "data": {
+    "appointment_id": "c01a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+    "tenant_id": "2a7f8e12-32a1-4b12-98ab-1234567890ab",
+    "transaction_id": "tx_mock_abc123",
+    "amount": 75.0,
+    "currency": "USD",
+    "status": "PAID"
+  }
+}

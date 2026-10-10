@@ -1,0 +1,222 @@
+openapi: 3.0.3
+info:
+  title: NebulaStack Scheduling Engine API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+paths:
+  /healthz:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /readyz:
+    get:
+      summary: Readiness (DB + Redis)
+      responses:
+        "200":
+          description: Ready
+        "503":
+          description: Not ready
+  /api/v1/schedules/hold:
+    post:
+      summary: Atomically hold an appointment slot
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: x-correlation-id
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HoldSlotRequest"
+      responses:
+        "201":
+          description: Slot held
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HoldSlotResponse"
+        "409":
+          description: Slot already locked or conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation error
+  /api/v1/schedules/appointments/{appointment_id}:
+    get:
+      summary: Get appointment by id
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: appointment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "404":
+          description: Not found
+  /api/v1/schedules/appointments/{appointment_id}/cancel:
+    post:
+      summary: Compensating cancel (ReleaseSlot)
+      parameters:
+        - name: x-tenant-id
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: appointment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+  /internal/events/payment-result:
+    post:
+      summary: Internal callback for payment saga results
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentResult"
+      responses:
+        "200":
+          description: Applied
+components:
+  schemas:
+    AppointmentStatus:
+      type: string
+      enum: [CREATED, HOLD, PAID, CONFIRMED, EXPIRED, CANCELLED]
+    HoldSlotRequest:
+      type: object
+      required: [service_id, start_time, customer_email]
+      properties:
+        service_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        customer_email:
+          type: string
+          format: email
+        customer_phone:
+          type: string
+    HoldSlotResponse:
+      type: object
+      required: [hold_id, tenant_id, service_id, start_time, expires_at, status]
+      properties:
+        hold_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        start_time:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/AppointmentStatus"
+        amount:
+          type: number
+        currency:
+          type: string
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        customer_email:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/AppointmentStatus"
+        amount:
+          type: number
+        currency:
+          type: string
+    PaymentResult:
+      type: object
+      required: [appointment_id, tenant_id, outcome]
+      properties:
+        appointment_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        outcome:
+          type: string
+          enum: [SUCCEEDED, FAILED, CONFIRMED]
+        transaction_id:
+          type: string
+        reason:
+          type: string
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string

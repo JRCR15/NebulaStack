@@ -1,0 +1,17 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "fastify": "^4.28.1",
+    "@fastify/http-proxy": "^9.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "ioredis": "^5.4.1",
+    "uuid": "^11.0.3"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "specversion": "1.0",
+  "type": "nebula.scheduling.hold.created",
+  "source": "/scheduling-engine/tenants/2a7f8e12-32a1-4b12-98ab-1234567890ab",
+  "id": "e8d901f4-34bc-412e-9110-888990123456",
+  "time": "2026-10-10T10:00:00Z",
+  "datacontenttype": "application/json",
+  "idempotency_key": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+  "data": {
+    "appointment_id": "c01a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+    "tenant_id": "2a7f8e12-32a1-4b12-98ab-1234567890ab",
+    "service_id": "11111111-1111-1111-1111-111111111111",
+    "customer_email": "customer@example.com",
+    "customer_phone": "+573001234567",
+    "start_time": "2026-10-11T15:00:00Z",
+    "amount": 75.0,
+    "currency": "USD",
+    "status": "HOLD",
+    "expires_at": "2026-10-10T10:02:00Z",
+    "payment_method_id": "pm_card_visa_mock"
+  }
+}

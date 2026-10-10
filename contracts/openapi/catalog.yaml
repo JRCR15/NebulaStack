@@ -1,0 +1,92 @@
+openapi: 3.0.3
+info:
+  title: NebulaStack Catalog API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8083
+paths:
+  /healthz:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /api/v1/catalog/services:
+    get:
+      summary: List bookable services for tenant
+      parameters:
+        - $ref: "#/components/parameters/XTenantId"
+      responses:
+        "200":
+          description: Service list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CatalogService"
+  /api/v1/catalog/services/{service_id}:
+    get:
+      summary: Service detail including price
+      parameters:
+        - $ref: "#/components/parameters/XTenantId"
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogService"
+        "404":
+          description: Not found
+components:
+  parameters:
+    XTenantId:
+      name: x-tenant-id
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    CatalogService:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - name
+        - duration_minutes
+        - price_amount
+        - currency
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        duration_minutes:
+          type: integer
+        price_amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: USD
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]

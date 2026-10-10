@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: NebulaStack API Gateway Routes
+  version: 1.0.0
+  description: Public edge routes. Gateway validates JWT, overwrites x-tenant-id, rate-limits, proxies.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Gateway liveness
+      responses:
+        "200":
+          description: OK
+  /api/v1/auth/token:
+    post:
+      summary: Proxy to auth-tenant-service (no JWT required)
+      responses:
+        "200":
+          description: Token
+  /api/v1/tenants/me:
+    get:
+      summary: Proxy to auth-tenant-service
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Tenant
+  /api/v1/catalog/services:
+    get:
+      summary: Proxy to catalog-service
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Services
+  /api/v1/catalog/services/{service_id}:
+    get:
+      summary: Proxy to catalog-service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Service
+  /api/v1/schedules/hold:
+    post:
+      summary: Proxy to scheduling-engine
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Held
+        "409":
+          description: Conflict
+        "429":
+          description: Rate limited
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

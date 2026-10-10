@@ -1,0 +1,204 @@
+name: nebulastack
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nebulastack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local}
+      POSTGRES_DB: ${POSTGRES_DB:-nebulastack}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../contracts/sql/001_extensions.sql:/docker-entrypoint-initdb.d/001_extensions.sql:ro
+      - ../../contracts/sql/002_tenants.sql:/docker-entrypoint-initdb.d/002_tenants.sql:ro
+      - ../../contracts/sql/003_catalog.sql:/docker-entrypoint-initdb.d/003_catalog.sql:ro
+      - ../../contracts/sql/004_appointments_outbox.sql:/docker-entrypoint-initdb.d/004_appointments_outbox.sql:ro
+      - ../../contracts/sql/005_rls_policies.sql:/docker-entrypoint-initdb.d/005_rls_policies.sql:ro
+      - ../../contracts/seeds/seed_tenants.sql:/docker-entrypoint-initdb.d/010_seed_tenants.sql:ro
+      - ../../contracts/seeds/seed_catalog.sql:/docker-entrypoint-initdb.d/011_seed_catalog.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nebulastack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  external-mocks:
+    build:
+      context: ../../services/external-mocks
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  auth-tenant-service:
+    build:
+      context: ../../services/auth-tenant-service
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nebulastack}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-nebulastack}
+      JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-min-32-chars-long}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.nebulastack.local}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-nebulastack-api}
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  catalog-service:
+    build:
+      context: ../../services/catalog-service
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nebulastack}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-nebulastack}
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  scheduling-engine:
+    build:
+      context: ../../services/scheduling-engine
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-nebulastack}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-nebulastack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-120}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz')"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  payment-orchestrator:
+    build:
+      context: ../../services/payment-orchestrator
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      MOCK_GATEWAY_URL: ${MOCK_GATEWAY_URL:-http://external-mocks:8090}
+    ports:
+      - "8084:8084"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      external-mocks:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8084/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  notification-service:
+    build:
+      context: ../../services/notification-service
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/nebulastack}
+      MOCK_GATEWAY_URL: ${MOCK_GATEWAY_URL:-http://external-mocks:8090}
+      SCHEDULING_URL: http://scheduling-engine:8081
+    ports:
+      - "8085:8085"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      scheduling-engine:
+        condition: service_healthy
+      external-mocks:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8085/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api-gateway:
+    build:
+      context: ../../services/api-gateway
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-min-32-chars-long}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.nebulastack.local}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-nebulastack-api}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-100}
+      AUTH_URL: http://auth-tenant-service:8082
+      CATALOG_URL: http://catalog-service:8083
+      SCHEDULING_URL: http://scheduling-engine:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      auth-tenant-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      scheduling-engine:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  mongodata:
