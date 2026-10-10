@@ -1,27 +1,42 @@
-# Demo JWT
+# Demo JWT — multi-tenant
+
+## Tenants
+
+| Slug | Name | Tenant ID |
+|------|------|-----------|
+| `cda` | CDA Colombia | `cda00000-0000-4000-8000-000000000001` |
+| `odonto` | Clínica Odontológica Sonrisa Andina | `0d071000-0000-4000-8000-000000000001` |
 
 ## Claims contract
 
 ```json
 {
   "iss": "https://auth.nebulastack.local",
-  "sub": "11111111-aaaa-bbbb-cccc-111111111111",
+  "sub": "user-uuid-per-tenant",
   "aud": "nebulastack-api",
-  "tenant_id": "2a7f8e12-32a1-4b12-98ab-1234567890ab",
+  "tenant_id": "<tenant uuid>",
   "roles": ["tenant_admin", "scheduler"],
-  "email": "admin@demo-tenant.example"
+  "email": "admin@cda.example"
 }
 ```
 
 ## Issue locally
 
 ```bash
-# from repo root, with JWT_SECRET set (never commit the secret)
-./deploy/scripts/issue-demo-jwt.sh
-# or
 curl -s -X POST http://localhost:8080/api/v1/auth/token \
   -H 'content-type: application/json' \
-  -d '{"grant_type":"client_credentials","tenant_slug":"demo-salon","client_id":"demo-client","client_secret":"demo-secret"}'
+  -d '{"grant_type":"client_credentials","tenant_slug":"cda","client_id":"demo-client","client_secret":"demo-secret"}'
 ```
 
+Use `tenant_slug":"odonto"` for the dental clinic.
+
 Gateway overwrites any client `x-tenant-id` using the `tenant_id` claim.
+
+## Catalog service IDs (happy path)
+
+| Tenant | Service | ID | Amount COP |
+|--------|---------|-----|------------|
+| cda | Revisión tecnomecánica | `cda11111-1111-4111-8111-111111111111` | 150000 |
+| odonto | Limpieza dental | `0d011111-1111-4111-8111-111111111111` | 120000 |
+| either | Saga probe | `*66666-...` | 666000 |
+| either | Circuit Breaker probe | `*99999-...` | 999000 |

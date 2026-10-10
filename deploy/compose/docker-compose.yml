@@ -16,6 +16,7 @@ services:
       - ../../contracts/sql/003_catalog.sql:/docker-entrypoint-initdb.d/003_catalog.sql:ro
       - ../../contracts/sql/004_appointments_outbox.sql:/docker-entrypoint-initdb.d/004_appointments_outbox.sql:ro
       - ../../contracts/sql/005_rls_policies.sql:/docker-entrypoint-initdb.d/005_rls_policies.sql:ro
+      - ../../contracts/sql/006_app_role.sql:/docker-entrypoint-initdb.d/006_app_role.sql:ro
       - ../../contracts/seeds/seed_tenants.sql:/docker-entrypoint-initdb.d/010_seed_tenants.sql:ro
       - ../../contracts/seeds/seed_catalog.sql:/docker-entrypoint-initdb.d/011_seed_catalog.sql:ro
     healthcheck:
@@ -72,7 +73,8 @@ services:
     build:
       context: ../../services/auth-tenant-service
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-nebulastack}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-nebulastack}
+      # Superuser bypasses RLS; app role is subject to FORCE RLS.
+      DATABASE_URL: postgres://nebulastack_app:change-me-app@postgres:5432/${POSTGRES_DB:-nebulastack}
       JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-min-32-chars-long}
       JWT_ISSUER: ${JWT_ISSUER:-https://auth.nebulastack.local}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-nebulastack-api}
@@ -91,7 +93,7 @@ services:
     build:
       context: ../../services/catalog-service
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-nebulastack}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-nebulastack}
+      DATABASE_URL: postgres://nebulastack_app:change-me-app@postgres:5432/${POSTGRES_DB:-nebulastack}
     ports:
       - "8083:8083"
     depends_on:
@@ -107,7 +109,7 @@ services:
     build:
       context: ../../services/scheduling-engine
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-nebulastack}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-nebulastack}
+      DATABASE_URL: postgres://nebulastack_app:change-me-app@postgres:5432/${POSTGRES_DB:-nebulastack}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
       HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-120}
@@ -179,6 +181,7 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-https://auth.nebulastack.local}
       JWT_AUDIENCE: ${JWT_AUDIENCE:-nebulastack-api}
       RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-100}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       AUTH_URL: http://auth-tenant-service:8082
       CATALOG_URL: http://catalog-service:8083
       SCHEDULING_URL: http://scheduling-engine:8081
@@ -195,6 +198,21 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  demo-ui:
+    image: nginx:1.27-alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ../../deploy/demo:/usr/share/nginx/html:ro
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 5s
       timeout: 3s
       retries: 10

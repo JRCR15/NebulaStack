@@ -3,18 +3,26 @@ import Fastify from "fastify";
 const app = Fastify({ logger: true });
 const port = Number(process.env.PORT || 8090);
 
+function isCircuitBreakerProbe(amount) {
+  return amount === 999 || amount === 999000;
+}
+
+function isSagaFailureProbe(amount) {
+  return amount === 666 || amount === 666000;
+}
+
 app.get("/healthz", async () => ({ status: "ok", service: "external-mocks" }));
 
 app.post("/v1/charge", async (request, reply) => {
   const { amount, idempotency_key: idempotencyKey } = request.body || {};
   const numericAmount = Number(amount);
 
-  if (numericAmount === 999) {
+  if (isCircuitBreakerProbe(numericAmount)) {
     await new Promise((r) => setTimeout(r, 5000));
     return reply.status(504).send({ error: "GATEWAY_TIMEOUT", idempotency_key: idempotencyKey });
   }
 
-  if (numericAmount === 666) {
+  if (isSagaFailureProbe(numericAmount)) {
     return reply.status(402).send({
       status: "FAILED",
       reason: "INSUFFICIENT_FUNDS",

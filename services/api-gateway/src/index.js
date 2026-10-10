@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import proxy from "@fastify/http-proxy";
 import jwt from "jsonwebtoken";
 import Redis from "ioredis";
@@ -17,6 +18,11 @@ const SCHEDULING_URL = process.env.SCHEDULING_URL || "http://scheduling-engine:8
 
 const redis = new Redis(process.env.REDIS_URL || "redis://redis:6379/0");
 
+const CORS_ORIGINS = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:3000,http://127.0.0.1:3000"
+).split(",").map((s) => s.trim());
+
 function problem(reply, status, title, detail) {
   return reply
     .status(status)
@@ -31,9 +37,23 @@ async function rateLimit(tenantId) {
   return count <= RATE_LIMIT_RPS;
 }
 
+await app.register(cors, {
+  origin: CORS_ORIGINS,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Authorization",
+    "Content-Type",
+    "Idempotency-Key",
+    "x-tenant-id",
+    "x-correlation-id",
+  ],
+});
+
 app.get("/healthz", async () => ({ status: "ok", service: "api-gateway" }));
 
 app.addHook("onRequest", async (request, reply) => {
+  if (request.method === "OPTIONS") return;
+
   request.headers["x-correlation-id"] =
     request.headers["x-correlation-id"] || randomUUID();
 
@@ -54,7 +74,6 @@ app.addHook("onRequest", async (request, reply) => {
     if (!payload.tenant_id) {
       return problem(reply, 401, "Unauthorized", "tenant_id claim required");
     }
-    // Overwrite any client-supplied tenant header
     request.headers["x-tenant-id"] = String(payload.tenant_id);
     request.tenantId = String(payload.tenant_id);
 

@@ -2,39 +2,50 @@
 
 Multi-tenant B2B scheduling SaaS prototype (Delivery 4). Contract-first monorepo with local Docker Compose and Terraform for AWS.
 
-## Quick start (local)
+## Interactive demo (recommended)
 
 Prerequisites: Docker Desktop, Compose v2.
 
 ```powershell
 cd deploy/compose
-copy .env.example .env
+copy .env.example .env   # if needed
+docker compose down -v   # recreate DB when seeds change
 docker compose up --build -d
 ```
 
-Wait until `api-gateway` is healthy, then:
+Open the presentation: **[http://localhost:3000](http://localhost:3000)**
+
+Guided steps: CDA auth → catalog → hold CONFIRMED → switch Odonto → hold → saga fail → Circuit Breaker → D4 checklist. Each step shows live API I/O and linked monorepo code snippets.
+
+## CLI E2E
 
 ```powershell
-cd ../..
+cd ../..   # repo root
 .\deploy\scripts\e2e-hold-pay-notify.ps1
+# Odonto happy path:
+.\deploy\scripts\e2e-hold-pay-notify.ps1 -TenantSlug odonto -ServiceId "0d011111-1111-4111-8111-111111111111"
+# Saga compensation (CDA):
+.\deploy\scripts\e2e-hold-pay-notify.ps1 -ServiceId "cda66666-6666-4666-8666-666666666666" -ExpectedStatus "CANCELLED"
+# Circuit Breaker:
+.\deploy\scripts\e2e-hold-pay-notify.ps1 -ServiceId "cda99999-9999-4999-8999-999999999999" -ExpectedStatus "CANCELLED"
 ```
 
-Happy path uses catalog service `11111111-1111-1111-1111-111111111111` (`price_amount=75` → `CONFIRMED`).
+| URL | Service |
+|-----|---------|
+| http://localhost:3000 | Demo presentation |
+| http://localhost:8080 | API Gateway |
+| http://localhost:15672 | RabbitMQ UI (`guest`/`guest`) |
 
-Compensation demo:
+## Demo tenants (Colombia)
 
-```powershell
-.\deploy\scripts\e2e-hold-pay-notify.ps1 -ServiceId "22222222-2222-2222-2222-222222222222" -ExpectedStatus "CANCELLED"
-```
+| Slug | Name | Happy service | Amount |
+|------|------|---------------|--------|
+| `cda` | CDA Colombia | Revisión tecnomecánica | 150000 COP |
+| `odonto` | Clínica Odontológica Sonrisa Andina | Limpieza dental | 120000 COP |
 
-Circuit Breaker demo (`999` amount / timeout):
+Probes: `666000` → saga fail · `999000` → Circuit Breaker.
 
-```powershell
-.\deploy\scripts\e2e-hold-pay-notify.ps1 -ServiceId "33333333-3333-3333-3333-333333333333" -ExpectedStatus "CANCELLED"
-```
-
-Gateway: `http://localhost:8080`  
-RabbitMQ UI: `http://localhost:15672` (guest/guest)
+Credentials: `demo-client` / `demo-secret`.
 
 ## Architecture
 
@@ -43,23 +54,21 @@ See:
 - [docs/baseline-d4.md](docs/baseline-d4.md)
 - [docs/architecture/integration-matrix.md](docs/architecture/integration-matrix.md)
 - [docs/architecture/fsm-appointment.md](docs/architecture/fsm-appointment.md)
+- [deploy/demo/README.md](deploy/demo/README.md)
 
 ### Services
 
 | Path | Lang | Role |
 |------|------|------|
-| `services/api-gateway` | TypeScript | JWT, `x-tenant-id`, rate limit, proxy |
+| `services/api-gateway` | TypeScript | JWT, `x-tenant-id`, CORS, rate limit, proxy |
 | `services/auth-tenant-service` | TypeScript | Demo tokens + tenants |
 | `services/catalog-service` | TypeScript | Bookable services / prices |
 | `services/scheduling-engine` | Python FastAPI | Hold + Outbox + FSM |
 | `services/payment-orchestrator` | TypeScript FaaS | Saga + Circuit Breaker |
 | `services/notification-service` | TypeScript FaaS | Mongo + WhatsApp mock |
 | `services/external-mocks` | TypeScript | Payment / WhatsApp / OpenAI fakes |
+| `deploy/demo` | HTML/JS | Interactive Delivery 4 presentation |
 | `services/ai-service` | stub | Post-D4 |
-
-### Contracts
-
-Canonical specs live under [`contracts/`](contracts/) (OpenAPI, CloudEvents, SQL+RLS, Mongo).
 
 ### Appointment states (English only)
 
@@ -67,20 +76,4 @@ Canonical specs live under [`contracts/`](contracts/) (OpenAPI, CloudEvents, SQL
 
 ## Terraform / secrets
 
-See [infra/terraform/README.md](infra/terraform/README.md).
-
-```bash
-export TF_VAR_db_password='...'
-export TF_VAR_jwt_secret='...'
-cd infra/terraform
-terraform init
-terraform plan -var-file=env/staging.tfvars
-```
-
-Never commit `.env`, `*.tfvars`, or plaintext passwords.
-
-## Demo credentials (local only)
-
-- Tenant slug: `demo-salon`
-- Client: `demo-client` / `demo-secret`
-- JWT secret: from `.env` (`JWT_SECRET`)
+See [infra/terraform/README.md](infra/terraform/README.md). Never commit `.env`, `*.tfvars`, or plaintext passwords.

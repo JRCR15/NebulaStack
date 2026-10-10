@@ -15,3 +15,5 @@ Single CoreDB with `tenant_id` columns and `SET LOCAL app.current_tenant_id` + R
 ## Consequences
 
 Simpler ops for the prototype; strict middleware discipline required to set tenant context every transaction.
+
+Local Compose uses role `nebulastack_app` (NOSUPERUSER, NOBYPASSRLS). The Postgres bootstrap superuser bypasses even `FORCE ROW LEVEL SECURITY`, so application services must not connect as superuser.

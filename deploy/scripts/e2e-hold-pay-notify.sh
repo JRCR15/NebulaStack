@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 BASE="${GATEWAY_URL:-http://localhost:8080}"
-SERVICE_ID="${SERVICE_ID:-11111111-1111-1111-1111-111111111111}"
+TENANT_SLUG="${TENANT_SLUG:-cda}"
+SERVICE_ID="${SERVICE_ID:-cda11111-1111-4111-8111-111111111111}"
+EXPECTED_STATUS="${EXPECTED_STATUS:-CONFIRMED}"
 START_TIME="${START_TIME:-$(date -u -d '+1 day' +%Y-%m-%dT15:00:00Z 2>/dev/null || date -u -v+1d +%Y-%m-%dT15:00:00Z)}"
 
 echo "==> waiting for gateway"
 ./deploy/scripts/wait-healthy.sh "$BASE/healthz" 90
 
-echo "==> issue JWT"
+echo "==> issue JWT tenant=$TENANT_SLUG"
 TOKEN_JSON=$(curl -sS -X POST "$BASE/api/v1/auth/token" \
   -H "content-type: application/json" \
-  -d '{"grant_type":"client_credentials","tenant_slug":"demo-salon","client_id":"demo-client","client_secret":"demo-secret"}')
+  -d "{\"grant_type\":\"client_credentials\",\"tenant_slug\":\"$TENANT_SLUG\",\"client_id\":\"demo-client\",\"client_secret\":\"demo-secret\"}")
 TOKEN=$(echo "$TOKEN_JSON" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
 if [[ -z "$TOKEN" ]]; then
   echo "failed to get token: $TOKEN_JSON" >&2
@@ -24,7 +26,7 @@ HOLD=$(curl -sS -X POST "$BASE/api/v1/schedules/hold" \
   -H "Authorization: Bearer $TOKEN" \
   -H "content-type: application/json" \
   -H "Idempotency-Key: $IDEM" \
-  -d "{\"service_id\":\"$SERVICE_ID\",\"start_time\":\"$START_TIME\",\"customer_email\":\"customer@example.com\",\"customer_phone\":\"+573001234567\"}")
+  -d "{\"service_id\":\"$SERVICE_ID\",\"start_time\":\"$START_TIME\",\"customer_email\":\"customer@${TENANT_SLUG}.example\",\"customer_phone\":\"+573001234567\"}")
 echo "$HOLD"
 HOLD_ID=$(echo "$HOLD" | sed -n 's/.*"hold_id":"\([^"]*\)".*/\1/p')
 if [[ -z "$HOLD_ID" ]]; then
@@ -51,9 +53,8 @@ if [[ -z "$FINAL" ]]; then
   exit 1
 fi
 
-EXPECTED="${EXPECTED_STATUS:-CONFIRMED}"
-if [[ "$FINAL" != "$EXPECTED" ]]; then
-  echo "expected $EXPECTED got $FINAL" >&2
+if [[ "$FINAL" != "$EXPECTED_STATUS" ]]; then
+  echo "expected $EXPECTED_STATUS got $FINAL" >&2
   exit 1
 fi
-echo "E2E OK status=$FINAL"
+echo "E2E OK status=$FINAL tenant=$TENANT_SLUG"

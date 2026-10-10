@@ -298,15 +298,17 @@ async def get_appointment(
 ) -> dict[str, Any]:
     assert db_pool is not None
     async with db_pool.acquire() as conn:
-        await set_tenant(conn, x_tenant_id)
-        row = await conn.fetchrow(
-            """
-            SELECT id, tenant_id, service_id, customer_email, start_time, end_time,
-                   status, amount::float8 AS amount, currency
-            FROM appointments WHERE id = $1
-            """,
-            appointment_id,
-        )
+        # set_config(..., is_local=true) only survives inside a transaction
+        async with conn.transaction():
+            await set_tenant(conn, x_tenant_id)
+            row = await conn.fetchrow(
+                """
+                SELECT id, tenant_id, service_id, customer_email, start_time, end_time,
+                       status, amount::float8 AS amount, currency
+                FROM appointments WHERE id = $1
+                """,
+                appointment_id,
+            )
     if not row:
         raise problem(404, "Not Found", "Appointment not found")
     return {

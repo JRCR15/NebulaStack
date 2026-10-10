@@ -9,6 +9,7 @@ Prototype that materializes the Team B design (D1–D3) for Delivery 4:
 - At least two FaaS components: `payment-orchestrator`, `notification-service`.
 - Persistence paradigms: PostgreSQL (+ RLS), Redis, MongoDB, message broker.
 - Containers locally via Docker Compose; AWS via Terraform (no hardcoded secrets).
+- Interactive HTML demo at `http://localhost:3000` with two Colombian tenants.
 
 ## Frozen decisions
 
@@ -21,22 +22,32 @@ Prototype that materializes the Team B design (D1–D3) for Delivery 4:
 | AWS broker | SQS with identical CloudEvents JSON |
 | Languages | TypeScript (gateway, auth, catalog, payment, notification, mocks); Python FastAPI (scheduling) |
 | Appointment FSM | English enums only: `CREATED`, `HOLD`, `PAID`, `CONFIRMED`, `EXPIRED`, `CANCELLED` |
+| Demo tenants | `cda` (CDA Colombia) and `odonto` (Clínica Odontológica Sonrisa Andina) |
+
+## Demo tenants
+
+| Slug | Business | Currency |
+|------|----------|----------|
+| `cda` | Centro de Diagnóstico Automotriz | COP |
+| `odonto` | Clínica odontológica | COP |
+
+Interactive presentation: [deploy/demo](../deploy/demo) → `http://localhost:3000`.
 
 ## Demo scenario (happy path)
 
-1. Obtain JWT from `auth-tenant-service` (`POST /api/v1/auth/token`).
-2. `POST /api/v1/schedules/hold` through `api-gateway` with `Authorization` + `Idempotency-Key`.
-3. Scheduling locks Redis key, writes appointment `HOLD` + outbox event.
-4. Payment FaaS charges mock gateway (`price_amount = 75`) → `nebula.payment.succeeded`.
-5. Notification FaaS writes Mongo log + WhatsApp mock → appointment `CONFIRMED`.
+1. Obtain JWT (`tenant_slug=cda` or `odonto`) via gateway.
+2. `POST /api/v1/schedules/hold` with `Authorization` + `Idempotency-Key`.
+3. Scheduling locks Redis, writes appointment `HOLD` + outbox event.
+4. Payment FaaS charges mock (`150000` / `120000` COP) → `nebula.payment.succeeded`.
+5. Notification FaaS writes Mongo + WhatsApp mock → `CONFIRMED`.
 
 ## Demo scenario (compensation)
 
-Use catalog service with `price_amount = 666` → mock returns payment failure → `nebula.payment.failed` → scheduling sets `CANCELLED` and releases Redis lock.
+Catalog probe `price_amount = 666000` → mock `402` → `nebula.payment.failed` → `CANCELLED` + Redis unlock.
 
 ## QA tactic (demonstrable)
 
-Circuit Breaker on payment outbound calls: catalog/service amount `999` (or mock delay) opens breaker (3s timeout, 50% error threshold, 10s reset).
+Circuit Breaker: probe `999000` → mock delay 5s / 504; breaker timeout 3s → `CANCELLED`.
 
 ## Out of scope for D4 critical path
 
@@ -46,8 +57,9 @@ Circuit Breaker on payment outbound calls: catalog/service amount `999` (or mock
 
 ## Delivery evidence checklist
 
-- [ ] `docker compose up` healthy stack
-- [ ] E2E script green (happy + compensation)
+- [ ] `docker compose up` healthy stack (+ `demo-ui` on :3000)
+- [ ] HTML demo steps CDA → Odonto → compensation → CB
+- [ ] E2E script green
 - [ ] Circuit Breaker reproducible
 - [ ] Terraform modules + `TF_VAR_*` secrets workflow
 - [ ] Repository link + README demo steps

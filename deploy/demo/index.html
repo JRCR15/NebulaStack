@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NebulaStack — Demo Delivery 4</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Nebula<span>Stack</span> · Demo D4</div>
+      <label class="gateway">
+        Gateway
+        <input id="gatewayUrl" type="text" value="http://localhost:8080" />
+      </label>
+    </header>
+
+    <div class="layout">
+      <aside class="steps">
+        <h2>Pasos</h2>
+        <nav id="stepNav"></nav>
+      </aside>
+
+      <section class="main">
+        <div class="slide">
+          <h1 id="slideTitle">Cargando…</h1>
+          <p id="slideBody"></p>
+          <div class="tenant-pills">
+            <span id="pillCda" class="pill cda">CDA Colombia</span>
+            <span id="pillOdonto" class="pill odonto">Sonrisa Andina</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="runBtn" class="run" type="button">Ejecutar este paso</button>
+          <button id="nextBtn" class="ghost" type="button">Siguiente →</button>
+        </div>
+        <div class="console">
+          <header>
+            <span><i id="statusDot" class="status-dot"></i> Consola live</span>
+            <span id="consoleMeta">lista</span>
+          </header>
+          <pre id="consoleOut">Selecciona un paso y pulsa «Ejecutar este paso».</pre>
+        </div>
+      </section>
+
+      <aside class="code-panel">
+        <h2 id="codeTitle">Código asociado</h2>
+        <p class="hint">
+          Snippets del monorepo vinculados a este paso (ruta real en el repo).
+        </p>
+        <div id="codeCards"></div>
+      </aside>
+    </div>
+
+    <footer class="footer-note">
+      Credenciales demo: client_id <code>demo-client</code> / client_secret
+      <code>demo-secret</code> · Stack local vía Docker Compose ·
+      <a href="http://localhost:15672" style="color: var(--accent)">RabbitMQ UI</a>
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

@@ -1,6 +1,7 @@
 param(
   [string]$GatewayUrl = "http://localhost:8080",
-  [string]$ServiceId = "11111111-1111-1111-1111-111111111111",
+  [string]$TenantSlug = "cda",
+  [string]$ServiceId = "cda11111-1111-4111-8111-111111111111",
   [string]$ExpectedStatus = "CONFIRMED"
 )
 
@@ -19,10 +20,10 @@ for ($i = 1; $i -le 90; $i++) {
 }
 if (-not $ok) { throw "gateway not healthy" }
 
-Write-Host "==> issue JWT"
+Write-Host "==> issue JWT tenant=$TenantSlug"
 $tokenRes = Invoke-RestMethod -Method POST "$GatewayUrl/api/v1/auth/token" -ContentType "application/json" -Body (@{
   grant_type = "client_credentials"
-  tenant_slug = "demo-salon"
+  tenant_slug = $TenantSlug
   client_id = "demo-client"
   client_secret = "demo-secret"
 } | ConvertTo-Json)
@@ -33,12 +34,14 @@ $headers = @{
   "Content-Type" = "application/json"
 }
 
-$start = (Get-Date).ToUniversalTime().AddDays(1).ToString("yyyy-MM-ddT15:00:00Z")
-Write-Host "==> hold slot service=$ServiceId start=$start"
+$start = (Get-Date).ToUniversalTime().AddDays(1)
+$start = Get-Date -Year $start.Year -Month $start.Month -Day $start.Day -Hour 15 -Minute (Get-Random -Maximum 50) -Second 0
+$startIso = $start.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+Write-Host "==> hold slot service=$ServiceId start=$startIso"
 $hold = Invoke-RestMethod -Method POST "$GatewayUrl/api/v1/schedules/hold" -Headers $headers -Body (@{
   service_id = $ServiceId
-  start_time = $start
-  customer_email = "customer@example.com"
+  start_time = $startIso
+  customer_email = "customer@$TenantSlug.example"
   customer_phone = "+573001234567"
 } | ConvertTo-Json)
 $hold | ConvertTo-Json -Depth 5
@@ -58,4 +61,4 @@ for ($i = 1; $i -le 30; $i++) {
 
 if (-not $final) { throw "E2E timeout" }
 if ($final -ne $ExpectedStatus) { throw "expected $ExpectedStatus got $final" }
-Write-Host "E2E OK status=$final"
+Write-Host "E2E OK status=$final tenant=$TenantSlug"

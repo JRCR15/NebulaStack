@@ -13,6 +13,17 @@ const JWT_AUDIENCE = process.env.JWT_AUDIENCE || "nebulastack-api";
 const DEMO_CLIENT_ID = process.env.DEMO_CLIENT_ID || "demo-client";
 const DEMO_CLIENT_SECRET = process.env.DEMO_CLIENT_SECRET || "demo-secret";
 
+const TENANT_IDENTITY = {
+  cda: {
+    sub: "cda00000-user-4000-8000-0000000000a1",
+    email: "admin@cda.example",
+  },
+  odonto: {
+    sub: "0d071000-user-4000-8000-0000000000a1",
+    email: "admin@odonto.example",
+  },
+};
+
 function problem(reply, status, title, detail) {
   return reply
     .status(status)
@@ -33,7 +44,7 @@ app.post("/api/v1/auth/token", async (request, reply) => {
     }
   }
 
-  const slug = body.tenant_slug || "demo-salon";
+  const slug = body.tenant_slug || "cda";
   const { rows } = await pool.query(
     "SELECT id, slug, name, status, plan FROM tenants WHERE slug = $1",
     [slug]
@@ -42,13 +53,17 @@ app.post("/api/v1/auth/token", async (request, reply) => {
     return problem(reply, 401, "Unauthorized", "Tenant not found or inactive");
   }
   const tenant = rows[0];
+  const identity = TENANT_IDENTITY[tenant.slug] || {
+    sub: "11111111-aaaa-bbbb-cccc-111111111111",
+    email: `admin@${tenant.slug}.example`,
+  };
   const expiresIn = 3600;
   const accessToken = jwt.sign(
     {
-      sub: "11111111-aaaa-bbbb-cccc-111111111111",
+      sub: identity.sub,
       tenant_id: tenant.id,
       roles: ["tenant_admin", "scheduler"],
-      email: "admin@demo-tenant.example",
+      email: identity.email,
     },
     JWT_SECRET,
     {
