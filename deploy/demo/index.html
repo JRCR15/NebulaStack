@@ -3,60 +3,430 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>NebulaStack — Demo Delivery 4</title>
+    <title>NebulaStack — Workspace</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">Nebula<span>Stack</span> · Demo D4</div>
-      <label class="gateway">
-        Gateway
-        <input id="gatewayUrl" type="text" value="http://localhost:8080" />
-      </label>
-    </header>
+    <!-- ========== PITCH COMERCIAL ========== -->
+    <div id="pitchView" class="pitch-view">
+      <header class="pitch-topbar">
+        <div class="brand-lockup">
+          <img class="brand-logo" src="./logo-nebula-stack.png" alt="Nebula Stack" />
+        </div>
+        <div class="pitch-progress" aria-hidden="true">
+          <div id="pitchProgressBar" class="pitch-progress-bar"></div>
+        </div>
+        <button type="button" id="skipToDemoBtn" class="btn-text">Probar workspace</button>
+      </header>
 
-    <div class="layout">
-      <aside class="steps">
-        <h2>Pasos</h2>
-        <nav id="stepNav"></nav>
-      </aside>
-
-      <section class="main">
-        <div class="slide">
-          <h1 id="slideTitle">Cargando…</h1>
-          <p id="slideBody"></p>
-          <div class="tenant-pills">
-            <span id="pillCda" class="pill cda">CDA Colombia</span>
-            <span id="pillOdonto" class="pill odonto">Sonrisa Andina</span>
+      <main class="pitch-stage">
+        <article id="pitchSlide" class="pitch-slide" aria-live="polite">
+          <p id="pitchKicker" class="pitch-kicker"></p>
+          <h1 id="pitchTitle" class="pitch-title"></h1>
+          <p id="pitchSubtitle" class="pitch-subtitle"></p>
+          <ul id="pitchBullets" class="pitch-bullets"></ul>
+          <div id="pitchCards" class="pitch-cards" hidden></div>
+          <div id="pitchReasons" class="pitch-reasons" hidden></div>
+          <div id="pitchArch" class="pitch-arch" hidden></div>
+          <div id="pitchCtaWrap" class="pitch-cta-wrap" hidden>
+            <button type="button" id="pitchCtaBtn" class="btn-primary"></button>
           </div>
+        </article>
+      </main>
+
+      <footer class="pitch-nav">
+        <button type="button" id="pitchPrev" class="btn-ghost">← Anterior</button>
+        <span id="pitchCounter" class="pitch-counter"></span>
+        <button type="button" id="pitchNext" class="btn-primary">Siguiente →</button>
+      </footer>
+    </div>
+
+    <!-- ========== WORKSPACE PoC ========== -->
+    <div id="demoView" class="demo-view" hidden>
+      <header class="portal-chrome">
+        <div class="brand-row">
+          <div class="brand-lockup compact">
+            <img class="brand-logo" src="./logo-nebula-stack.png" alt="Nebula Stack" />
+          </div>
+          <span class="mode-badge">Workspace</span>
         </div>
-        <div class="actions">
-          <button id="runBtn" class="run" type="button">Ejecutar este paso</button>
-          <button id="nextBtn" class="ghost" type="button">Siguiente →</button>
+        <div class="topbar-actions">
+          <button type="button" id="settingsBtn" class="btn-ghost compact" title="Ajustes">
+            Ajustes
+          </button>
         </div>
-        <div class="console">
-          <header>
-            <span><i id="statusDot" class="status-dot"></i> Consola live</span>
-            <span id="consoleMeta">lista</span>
-          </header>
-          <pre id="consoleOut">Selecciona un paso y pulsa «Ejecutar este paso».</pre>
+      </header>
+
+      <!-- Login workspace -->
+      <section id="portalPicker" class="portal-picker">
+        <div class="login-layout">
+          <div class="picker-hero">
+            <img class="picker-logo" src="./logo-nebula-stack.png" alt="Nebula Stack" />
+            <h1>Inicia sesión</h1>
+            <p>Agenda, cobra y confirma citas con la marca de tu organización.</p>
+          </div>
+          <form id="loginForm" class="login-card">
+            <label>
+              Organización
+              <select id="loginTenant" required>
+                <option value="cda">CDA Colombia</option>
+                <option value="odonto">Sonrisa Andina</option>
+              </select>
+            </label>
+            <label>
+              Correo
+              <input
+                id="loginEmail"
+                type="email"
+                autocomplete="username"
+                value="admin@cda.example"
+                required
+              />
+            </label>
+            <label>
+              Contraseña
+              <input
+                id="loginPassword"
+                type="password"
+                autocomplete="current-password"
+                value="Demo123!"
+                required
+              />
+            </label>
+            <p id="loginError" class="login-error" hidden></p>
+            <button type="submit" id="loginBtn" class="btn-primary">Iniciar sesión</button>
+            <p class="login-hint">
+              Usuarios de prueba: <code>admin@cda.example</code> /
+              <code>admin@odonto.example</code> · clave <code>Demo123!</code>
+            </p>
+          </form>
         </div>
       </section>
 
-      <aside class="code-panel">
-        <h2 id="codeTitle">Código asociado</h2>
-        <p class="hint">
-          Snippets del monorepo vinculados a este paso (ruta real en el repo).
+      <!-- App SaaS -->
+      <section id="portalApp" class="portal-app" hidden>
+        <div class="app-shell">
+          <nav class="app-sidebar" aria-label="Navegación">
+            <button type="button" class="nav-item" data-view="profile">
+              <span class="nav-icon" aria-hidden="true">☺</span>
+              Perfil del usuario
+            </button>
+            <button type="button" class="nav-item" data-view="reservations">
+              <span class="nav-icon" aria-hidden="true">☰</span>
+              Mis reservas
+            </button>
+            <button type="button" class="nav-item active" data-view="agenda">
+              <span class="nav-icon" aria-hidden="true">◇</span>
+              Agenda
+            </button>
+            <div class="sidebar-spacer"></div>
+            <div class="whatif-wrap">
+              <button type="button" id="whatIfBtn" class="btn-ghost compact whatif-trigger">
+                Qué pasa si…
+              </button>
+              <div id="whatIfMenu" class="whatif-menu" hidden>
+                <button type="button" id="probeSagaBtn" class="whatif-item">
+                  El pago es rechazado
+                </button>
+                <button type="button" id="probeCbBtn" class="whatif-item">
+                  La pasarela no responde
+                </button>
+                <button type="button" id="probeRaceBtn" class="whatif-item">
+                  Dos clientes piden el mismo cupo
+                </button>
+              </div>
+            </div>
+          </nav>
+
+          <div class="app-body">
+            <header class="tenant-topbar">
+              <div class="tenant-identity">
+                <span id="tenantBadge" class="tenant-badge">—</span>
+                <div>
+                  <strong id="tenantName">Organización</strong>
+                  <span id="tenantPlan" class="tenant-plan">STANDARD</span>
+                </div>
+              </div>
+              <div class="tenant-actions">
+                <button type="button" id="switchTenantBtn" class="btn-ghost compact">
+                  Cerrar sesión
+                </button>
+                <span class="powered">NebulaStack</span>
+              </div>
+            </header>
+
+            <!-- Asistente oculto (presentadores): tecla ? -->
+            <div id="presenterBar" class="presenter-bar" hidden>
+              <div class="presenter-copy">
+                <span class="presenter-label">Asistente de demo</span>
+                <strong id="presenterTitle">Listo</strong>
+                <p id="presenterHint">Atajo ? para mostrar u ocultar.</p>
+              </div>
+              <div class="presenter-nav">
+                <button type="button" id="presenterPrev" class="btn-ghost compact">←</button>
+                <span id="presenterCounter" class="presenter-counter">1 / 8</span>
+                <button type="button" id="presenterNext" class="btn-ghost compact">→</button>
+                <button type="button" id="presenterRun" class="btn-primary compact">
+                  Ejecutar
+                </button>
+                <button type="button" id="presenterHide" class="btn-text">Ocultar</button>
+              </div>
+            </div>
+
+            <div class="portal-workspace">
+              <div class="portal-main">
+                <div class="portal-grid">
+                  <section class="panel booking-panel" data-panel="agenda">
+                    <header class="panel-head">
+                      <h2 id="bookingHeading">Nuevo Servicio</h2>
+                    </header>
+                    <p id="hoursBanner" class="hours-banner">Horario de atención</p>
+                    <div id="rescheduleBanner" class="reschedule-banner" hidden>
+                      <p id="rescheduleBannerText"></p>
+                      <button type="button" id="cancelRescheduleBtn" class="btn-text">
+                        Dejar de modificar
+                      </button>
+                    </div>
+                    <form id="bookingForm" class="booking-form">
+                      <label>
+                        Servicio
+                        <select id="serviceSelect" required></select>
+                      </label>
+                      <div class="form-row">
+                        <label>
+                          Fecha
+                          <input id="bookingDate" type="date" required />
+                        </label>
+                        <label>
+                          Hora
+                          <select id="bookingTime" required>
+                            <option value="">Elige una hora</option>
+                          </select>
+                        </label>
+                      </div>
+                      <p id="bookingSlotHint" class="booking-slot-hint"></p>
+                      <p id="bookingSlotError" class="login-error" hidden></p>
+                      <label>
+                        Correo del cliente
+                        <input
+                          id="bookingEmail"
+                          type="email"
+                          readonly
+                          required
+                        />
+                      </label>
+                      <div class="form-actions">
+                        <button type="submit" id="bookBtn" class="btn-primary">
+                          Reservar y pagar
+                        </button>
+                      </div>
+                    </form>
+
+                  </section>
+
+                  <section class="panel reservations-panel" data-panel="reservations" hidden>
+                    <header class="panel-head">
+                      <h2>Mis reservas</h2>
+                      <button type="button" id="newBookingBtn" class="btn-text">Nueva cita</button>
+                    </header>
+                    <p id="reservationsEmpty" class="empty-hint">
+                      Aún no tienes reservas. Agenda un servicio y completa el pago.
+                    </p>
+                    <div id="reservationsList" class="reservations-list"></div>
+                  </section>
+
+                  <section class="panel profile-panel" data-panel="profile" hidden>
+                    <header class="panel-head">
+                      <h2>Perfil del usuario</h2>
+                    </header>
+                    <div class="profile-card">
+                      <div class="profile-avatar" id="profileAvatar" aria-hidden="true">—</div>
+                      <dl class="profile-details">
+                        <div>
+                          <dt>Nombre</dt>
+                          <dd id="profileName">—</dd>
+                        </div>
+                        <div>
+                          <dt>Correo</dt>
+                          <dd id="profileEmail">—</dd>
+                        </div>
+                        <div>
+                          <dt>WhatsApp</dt>
+                          <dd id="profilePhone">—</dd>
+                        </div>
+                        <div>
+                          <dt>Organización</dt>
+                          <dd id="profileOrg">—</dd>
+                        </div>
+                        <div>
+                          <dt>Plan</dt>
+                          <dd id="profilePlan">—</dd>
+                        </div>
+                        <div>
+                          <dt>Rol</dt>
+                          <dd id="profileRole">—</dd>
+                        </div>
+                      </dl>
+                      <div class="profile-actions">
+                        <button type="button" id="profileLogoutBtn" class="btn-ghost">
+                          Cerrar sesión
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="profile-payment">
+                      <header class="panel-head">
+                        <h3>Medio de pago</h3>
+                        <span class="profile-payment-badge">NebulaPay</span>
+                      </header>
+                      <article class="payment-method-card" id="profilePaymentCard">
+                        <div class="payment-method-brand">
+                          <span class="pay-mark compact">NP</span>
+                          <div>
+                            <strong id="profileCardBrand">Visa</strong>
+                            <em>Predeterminada</em>
+                          </div>
+                        </div>
+                        <p class="payment-method-number" id="profileCardNumber">
+                          •••• •••• •••• 1111
+                        </p>
+                        <dl class="payment-method-meta">
+                          <div>
+                            <dt>Titular</dt>
+                            <dd id="profileCardHolder">—</dd>
+                          </div>
+                          <div>
+                            <dt>Vence</dt>
+                            <dd id="profileCardExp">—</dd>
+                          </div>
+                        </dl>
+                      </article>
+                      <p class="empty-hint">
+                        Este medio se usa al pagar citas y para devoluciones si cancelas.
+                      </p>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <aside class="portal-live" id="portalLive" data-panel="activity">
+                <div class="live-head">
+                  <h2>Actividad</h2>
+                  <button type="button" id="toggleLiveBtn" class="btn-text live-toggle">
+                    Ocultar
+                  </button>
+                </div>
+                <div id="d4Chips" class="d4-chips" aria-label="Indicadores del producto"></div>
+                <ol id="activityFeed" class="activity-feed" aria-live="polite"></ol>
+                <label class="tech-toggle">
+                  <input type="checkbox" id="techDetailToggle" />
+                  Ver detalle técnico
+                </label>
+                <div id="techDetail" class="tech-detail" hidden>
+                  <div class="console">
+                    <header>
+                      <span><i id="statusDot" class="status-dot"></i> Detalle</span>
+                      <span id="consoleMeta">lista</span>
+                    </header>
+                    <pre id="consoleOut">Los eventos aparecerán aquí al usar el workspace.</pre>
+                  </div>
+                  <button type="button" id="openCodeBtn" class="btn-ghost code-open-btn">
+                    Ver en el código
+                  </button>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Pasarela de pago simulada -->
+    <div id="checkoutOverlay" class="flow-overlay" hidden>
+      <div class="flow-card checkout-card">
+        <header class="checkout-brand">
+          <div>
+            <span class="pay-mark">NP</span>
+            <strong>NebulaPay</strong>
+            <em>Pasarela segura</em>
+          </div>
+          <span id="checkoutMerchant" class="checkout-merchant">—</span>
+        </header>
+        <div class="checkout-summary">
+          <p id="checkoutService" class="checkout-service">Servicio</p>
+          <p id="checkoutWhen" class="checkout-when">Fecha</p>
+          <p id="checkoutAmount" class="checkout-amount">$0 COP</p>
+        </div>
+        <div class="checkout-form">
+          <label>
+            Titular
+            <input id="payName" type="text" value="Cliente Demo" autocomplete="cc-name" />
+          </label>
+          <label>
+            Número de tarjeta
+            <input
+              id="payCard"
+              type="text"
+              value="4111 1111 1111 1111"
+              inputmode="numeric"
+              autocomplete="cc-number"
+            />
+          </label>
+          <div class="form-row">
+            <label>
+              Vence
+              <input id="payExp" type="text" value="12/28" autocomplete="cc-exp" />
+            </label>
+            <label>
+              CVV
+              <input id="payCvv" type="password" value="123" maxlength="4" autocomplete="cc-csc" />
+            </label>
+          </div>
+        </div>
+        <p id="checkoutStatus" class="checkout-status">Cupo reservado. Confirma el pago para continuar.</p>
+        <div class="checkout-actions">
+          <button type="button" id="payCancelBtn" class="btn-ghost">
+            Volver y editar cita
+          </button>
+          <button type="button" id="payConfirmBtn" class="btn-primary">Pagar ahora</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ajustes -->
+    <div id="settingsDrawer" class="code-drawer" hidden>
+      <div class="code-drawer-backdrop" id="settingsBackdrop"></div>
+      <aside class="code-drawer-panel settings-panel" role="dialog" aria-labelledby="settingsTitle">
+        <header>
+          <h2 id="settingsTitle">Ajustes</h2>
+          <button type="button" id="closeSettingsBtn" class="btn-text">Cerrar</button>
+        </header>
+        <p class="hint">Conexión al API y usuarios de prueba del workspace.</p>
+        <label class="settings-field">
+          URL del API
+          <input id="gatewayUrl" type="text" value="http://localhost:8080" />
+        </label>
+        <p class="settings-note">
+          Login UI: <code>admin@cda.example</code> o <code>admin@odonto.example</code> /
+          <code>Demo123!</code><br />
+          Scripts E2E: <code>demo-client</code> / <code>demo-secret</code>
         </p>
-        <div id="codeCards"></div>
+        <button type="button" id="backToPitchBtn" class="btn-ghost">Volver a la presentación</button>
       </aside>
     </div>
 
-    <footer class="footer-note">
-      Credenciales demo: client_id <code>demo-client</code> / client_secret
-      <code>demo-secret</code> · Stack local vía Docker Compose ·
-      <a href="http://localhost:15672" style="color: var(--accent)">RabbitMQ UI</a>
-    </footer>
+    <!-- Drawer código -->
+    <div id="codeDrawer" class="code-drawer" hidden>
+      <div class="code-drawer-backdrop" id="codeDrawerBackdrop"></div>
+      <aside class="code-drawer-panel" role="dialog" aria-labelledby="codeTitle">
+        <header>
+          <h2 id="codeTitle">Cómo está hecho</h2>
+          <button type="button" id="closeCodeBtn" class="btn-text">Cerrar</button>
+        </header>
+        <p class="hint">Fragmentos del producto vinculados a la acción actual.</p>
+        <div id="codeCards"></div>
+      </aside>
+    </div>
 
     <script type="module" src="./app.js"></script>
   </body>

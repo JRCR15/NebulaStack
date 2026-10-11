@@ -1,37 +1,55 @@
-# Presentación interactiva NebulaStack (Delivery 4)
+# NebulaStack Workspace (pitch + PoC)
 
-SPA en español que ejecuta el demo E2E contra el API Gateway local y asocia cada paso con archivos del monorepo (`code-map.json`).
+SPA en `http://localhost:3000`:
+
+1. **Pitch comercial** — producto y arquitectura.
+2. **Workspace** — login de usuario + agenda multi-empresa contra el API Gateway.
 
 ## Abrir
 
 ```powershell
 cd deploy/compose
-docker compose up --build -d
+docker compose up -d --build
 ```
 
-Luego abre [http://localhost:3000](http://localhost:3000).
+Abre [http://localhost:3000](http://localhost:3000).
 
-Si cambiaste seeds, recrea la DB:
+Pitch: `←` / `→` o espacio. “Probar workspace” abre el **login**.
 
-```powershell
-docker compose down -v
-docker compose up --build -d
-```
+## Usuarios de prueba
 
-## Guion sugerido (9 pasos)
+| Organización | Correo | Contraseña |
+|--------------|--------|------------|
+| CDA Colombia | `admin@cda.example` | `Demo123!` |
+| Sonrisa Andina | `admin@odonto.example` | `Demo123!` |
 
-1. Contexto D4 (narración)
-2. Auth CDA → JWT
-3. Catálogo CDA (servicios automotrices COP)
-4. Hold CDA → `CONFIRMED`
-5. Switch Odonto + catálogo distinto (aislamiento)
-6. Hold Odonto → `CONFIRMED`
-7. Saga fallo (`666000`) → `CANCELLED`
-8. Circuit Breaker (`999000`) → `CANCELLED`
-9. Cierre checklist
+## Guion sugerido (clientes)
 
-## Credenciales
+### Pitch
 
-- `client_id`: `demo-client`
-- `client_secret`: `demo-secret`
-- Tenants: `cda` | `odonto`
+Producto → problema → solución → verticales → arquitectura → confianza → **Probar el workspace**.
+
+### Workspace (flujo real)
+
+1. Elegir organización, digitar correo y contraseña → **Iniciar sesión**  
+2. Ver solo servicios de negocio (sin probes) → **Confirmar cita**  
+3. Seguir estados: Reservada → Pagada → Confirmada  
+4. **Cerrar sesión** → entrar como la otra organización  
+5. Menú **Qué pasa si…** (escenarios internos; no aparecen en el catálogo)  
+6. Panel **Actividad**; opcional **Ver detalle técnico**
+
+### Presentadores / evaluadores
+
+- Tecla **`?`**: asistente de demo.  
+- **Ajustes**: URL del API, credenciales, volver al pitch.  
+- Probes de saga/CB siguen en backend; la UI los oculta del listado.
+
+## Archivos
+
+| Archivo | Rol |
+|---------|-----|
+| `pitch-content.js` | Copy y SVG |
+| `app.js` | Pitch + login + workspace + API |
+| `styles.css` | Marca NebulaStack + temas por organización |
+| `code-map.json` | Snippets (drawer técnico) |
+| `logo-nebula-stack.png` | Logo |

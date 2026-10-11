@@ -64,6 +64,12 @@ async def publish_event(event: dict[str, Any]) -> None:
 
 
 async def outbox_publisher_loop() -> None:
+    """Drain outbox → RabbitMQ.
+
+    set_config(..., is_local=True) only lasts inside a transaction. Without a
+    transaction the subsequent UPDATE sees no tenant and RLS updates 0 rows,
+    so events are republished forever and payment stays stuck on HOLD.
+    """
     assert db_pool is not None
     while True:
         try:
@@ -78,42 +84,67 @@ async def outbox_publisher_loop() -> None:
                     """
                 )
                 for row in rows:
-                    await set_tenant(conn, str(row["tenant_id"]))
                     payload = row["payload"]
                     if isinstance(payload, str):
                         payload = json.loads(payload)
-                    await publish_event(payload)
-                    await conn.execute(
-                        "UPDATE outbox_events SET processed = TRUE WHERE id = $1", row["id"]
-                    )
+                    try:
+                        await publish_event(payload)
+                        async with conn.transaction():
+                            await set_tenant(conn, str(row["tenant_id"]))
+                            updated = await conn.execute(
+                                """
+                                UPDATE outbox_events
+                                SET processed = TRUE
+                                WHERE id = $1 AND processed = FALSE
+                                """,
+                                row["id"],
+                            )
+                            if updated == "UPDATE 0":
+                                print(
+                                    f"outbox mark processed skipped (RLS?) id={row['id']}"
+                                )
+                    except Exception as row_exc:  # noqa: BLE001
+                        print(f"outbox publish row {row['id']} error: {row_exc}")
         except Exception as exc:  # noqa: BLE001
             print(f"outbox publisher error: {exc}")
         await asyncio.sleep(1)
 
 
 async def payment_consumer_loop() -> None:
-    assert rabbit_channel is not None
-    queue = await rabbit_channel.declare_queue("scheduling.payment.results", durable=True)
-    await queue.bind(exchange, routing_key="nebula.payment.succeeded")
-    await queue.bind(exchange, routing_key="nebula.payment.failed")
+    """Consume payment results; restart on failure so HOLD→PAID does not stall."""
+    while True:
+        try:
+            assert rabbit_channel is not None
+            queue = await rabbit_channel.declare_queue(
+                "scheduling.payment.results", durable=True
+            )
+            await queue.bind(exchange, routing_key="nebula.payment.succeeded")
+            await queue.bind(exchange, routing_key="nebula.payment.failed")
 
-    async with queue.iterator() as queue_iter:
-        async for message in queue_iter:
-            async with message.process():
-                event = json.loads(message.body.decode())
-                data = event.get("data", {})
-                outcome = "SUCCEEDED" if event["type"].endswith("succeeded") else "FAILED"
-                # Event consumer only moves HOLD → PAID / CANCELLED.
-                # Notification service calls HTTP with outcome=CONFIRMED afterwards.
-                await apply_payment_result(
-                    PaymentResult(
-                        appointment_id=uuid.UUID(data["appointment_id"]),
-                        tenant_id=uuid.UUID(data["tenant_id"]),
-                        outcome=outcome,
-                        transaction_id=data.get("transaction_id"),
-                        reason=data.get("reason"),
-                    )
-                )
+            async with queue.iterator() as queue_iter:
+                async for message in queue_iter:
+                    async with message.process():
+                        event = json.loads(message.body.decode())
+                        data = event.get("data", {})
+                        outcome = (
+                            "SUCCEEDED"
+                            if event["type"].endswith("succeeded")
+                            else "FAILED"
+                        )
+                        # Event consumer only moves HOLD → PAID / CANCELLED.
+                        # Notification service calls HTTP with outcome=CONFIRMED afterwards.
+                        await apply_payment_result(
+                            PaymentResult(
+                                appointment_id=uuid.UUID(data["appointment_id"]),
+                                tenant_id=uuid.UUID(data["tenant_id"]),
+                                outcome=outcome,
+                                transaction_id=data.get("transaction_id"),
+                                reason=data.get("reason"),
+                            )
+                        )
+        except Exception as exc:  # noqa: BLE001
+            print(f"payment consumer error (restarting): {exc}")
+            await asyncio.sleep(2)
 
 
 @app.on_event("startup")

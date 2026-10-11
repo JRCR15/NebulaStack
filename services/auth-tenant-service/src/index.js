@@ -24,11 +24,36 @@ const TENANT_IDENTITY = {
   },
 };
 
+/** Local demo users for grant_type=password (UI workspace login). */
+const DEMO_USERS = {
+  "admin@cda.example": { password: "Demo123!", tenant_slug: "cda" },
+  "admin@odonto.example": { password: "Demo123!", tenant_slug: "odonto" },
+};
+
 function problem(reply, status, title, detail) {
   return reply
     .status(status)
     .header("content-type", "application/problem+json")
     .send({ type: "about:blank", title, status, detail });
+}
+
+function resolvePasswordLogin(body) {
+  const username = String(body.username || body.email || "")
+    .trim()
+    .toLowerCase();
+  const password = String(body.password || "");
+  if (!username || !password) {
+    return { error: "username and password are required" };
+  }
+  const user = DEMO_USERS[username];
+  if (!user || user.password !== password) {
+    return { error: "Invalid username or password" };
+  }
+  const requestedSlug = String(body.tenant_slug || user.tenant_slug).trim().toLowerCase();
+  if (requestedSlug !== user.tenant_slug) {
+    return { error: "User does not belong to the selected organization" };
+  }
+  return { slug: user.tenant_slug, email: username };
 }
 
 app.get("/healthz", async () => ({ status: "ok", service: "auth-tenant-service" }));
@@ -38,13 +63,23 @@ app.post("/api/v1/auth/token", async (request, reply) => {
   if (body.grant_type !== "client_credentials" && body.grant_type !== "password") {
     return problem(reply, 400, "Invalid grant", "Unsupported grant_type");
   }
+
+  let slug = body.tenant_slug || "cda";
+  let emailOverride = null;
+
   if (body.grant_type === "client_credentials") {
     if (body.client_id !== DEMO_CLIENT_ID || body.client_secret !== DEMO_CLIENT_SECRET) {
       return problem(reply, 401, "Unauthorized", "Invalid client credentials");
     }
+  } else {
+    const login = resolvePasswordLogin(body);
+    if (login.error) {
+      return problem(reply, 401, "Unauthorized", login.error);
+    }
+    slug = login.slug;
+    emailOverride = login.email;
   }
 
-  const slug = body.tenant_slug || "cda";
   const { rows } = await pool.query(
     "SELECT id, slug, name, status, plan FROM tenants WHERE slug = $1",
     [slug]
@@ -53,17 +88,18 @@ app.post("/api/v1/auth/token", async (request, reply) => {
     return problem(reply, 401, "Unauthorized", "Tenant not found or inactive");
   }
   const tenant = rows[0];
-  const identity = TENANT_IDENTITY[tenant.slug] || {
+  const baseIdentity = TENANT_IDENTITY[tenant.slug] || {
     sub: "11111111-aaaa-bbbb-cccc-111111111111",
     email: `admin@${tenant.slug}.example`,
   };
+  const email = emailOverride || baseIdentity.email;
   const expiresIn = 3600;
   const accessToken = jwt.sign(
     {
-      sub: identity.sub,
+      sub: baseIdentity.sub,
       tenant_id: tenant.id,
       roles: ["tenant_admin", "scheduler"],
-      email: identity.email,
+      email,
     },
     JWT_SECRET,
     {

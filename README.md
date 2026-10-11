@@ -15,7 +15,10 @@ docker compose up --build -d
 
 Open the presentation: **[http://localhost:3000](http://localhost:3000)**
 
-Guided steps: CDA auth → catalog → hold CONFIRMED → switch Odonto → hold → saga fail → Circuit Breaker → D4 checklist. Each step shows live API I/O and linked monorepo code snippets.
+1. **Pitch comercial** (clientes): producto → arquitectura justificada → CTA  
+2. **Workspace PoC**: login (`admin@cda.example` / `admin@odonto.example` · `Demo123!`) → servicios de negocio → confirmar cita → panel Actividad; “Qué pasa si…” y detalle técnico opcionales
+
+Guion: [deploy/demo/README.md](deploy/demo/README.md).
 
 ## CLI E2E
 
@@ -45,7 +48,8 @@ cd ../..   # repo root
 
 Probes: `666000` → saga fail · `999000` → Circuit Breaker.
 
-Credentials: `demo-client` / `demo-secret`.
+Login UI: `admin@cda.example` / `admin@odonto.example` · `Demo123!`.  
+Scripts E2E: `demo-client` / `demo-secret`.
 
 ## Architecture
 

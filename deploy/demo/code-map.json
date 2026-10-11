@@ -1,141 +1,141 @@
 {
-  "context": {
-    "title": "Arquitectura Delivery 4",
-    "files": [
-      {
-        "path": "docs/baseline-d4.md",
-        "title": "Baseline D4",
-        "snippet": "End-to-end: authenticate → hold slot → payment saga → notification\nPatterns: API Gateway, Redis SET NX PX, Outbox, Saga, Circuit Breaker\n≥2 FaaS: payment-orchestrator + notification-service\nPersistence: PostgreSQL+RLS, Redis, MongoDB, broker"
-      },
-      {
-        "path": "docs/architecture/integration-matrix.md",
-        "title": "Matriz de integración",
-        "snippet": "Client → api-gateway → scheduling-engine\nscheduling outbox → nebula.scheduling.hold.created → payment FaaS\npayment.succeeded → notification FaaS → CONFIRMED\npayment.failed → scheduling → CANCELLED"
-      }
-    ]
-  },
   "auth-cda": {
-    "title": "JWT multi-tenant (CDA)",
+    "title": "Acceso seguro por empresa",
     "files": [
       {
         "path": "services/auth-tenant-service/src/index.js",
-        "title": "Emisión JWT por tenant_slug",
-        "snippet": "const slug = body.tenant_slug || \"cda\";\nconst identity = TENANT_IDENTITY[tenant.slug];\n// claims: tenant_id, email admin@cda.example, roles"
+        "title": "Sesión con identidad de empresa",
+        "snippet": "const slug = body.tenant_slug || \"cda\";\nconst identity = TENANT_IDENTITY[tenant.slug];\n// claims: tenant_id, email admin@cda.example"
       },
       {
         "path": "services/api-gateway/src/index.js",
-        "title": "Gateway sobrescribe x-tenant-id",
-        "snippet": "const payload = jwt.verify(...);\nrequest.headers[\"x-tenant-id\"] = String(payload.tenant_id);\n// Nunca confiar en x-tenant-id del cliente"
+        "title": "El borde impone la empresa del token",
+        "snippet": "const payload = jwt.verify(...);\nrequest.headers[\"x-tenant-id\"] = String(payload.tenant_id);\n// Nunca confiar en un header enviado por el cliente"
       }
     ]
   },
   "catalog-cda": {
-    "title": "Catálogo aislado por RLS",
+    "title": "Catálogo aislado",
     "files": [
       {
         "path": "services/catalog-service/src/index.js",
-        "title": "SET LOCAL app.current_tenant_id",
-        "snippet": "await client.query(\"SELECT set_config('app.current_tenant_id', $1, true)\", [tenantId]);\n// Solo ve servicios del tenant del JWT"
+        "title": "Contexto de empresa en cada consulta",
+        "snippet": "await client.query(\"SELECT set_config('app.current_tenant_id', $1, true)\", [tenantId]);\n// Solo servicios de esa empresa"
       },
       {
         "path": "contracts/seeds/seed_catalog.sql",
-        "title": "Seed CDA (COP)",
-        "snippet": "Revisión tecnomecánica → 150000 COP\nDiagnóstico OBD → 80000 COP\nProbes Saga/CB → 666000 / 999000"
+        "title": "Servicios CDA (COP)",
+        "snippet": "Revisión tecnomecánica → 150000 COP\nDiagnóstico OBD → 80000 COP"
       }
     ]
   },
   "hold-cda": {
-    "title": "Hold atómico + Outbox",
+    "title": "Reserva → cobro → confirmación",
     "files": [
       {
         "path": "services/scheduling-engine/src/main.py",
-        "title": "Redis SET NX + appointment HOLD",
-        "snippet": "acquired = await redis_client.set(redis_key, hold_token, nx=True, ex=HOLD_TTL_SECONDS)\n# INSERT appointments status='HOLD'\n# INSERT outbox_events event_type='nebula.scheduling.hold.created'"
+        "title": "Retención atómica del cupo",
+        "snippet": "acquired = await redis_client.set(redis_key, hold_token, nx=True, ex=HOLD_TTL_SECONDS)\n# cita en HOLD + evento para cobro"
       },
       {
         "path": "services/payment-orchestrator/src/handler.js",
-        "title": "FaaS 1 — Saga + Circuit Breaker",
-        "snippet": "const result = await breaker.fire({ amount, idempotency_key });\n// SUCCESS → nebula.payment.succeeded\n// FAILED → nebula.payment.failed (compensación)"
+        "title": "Cobro con protección ante fallos",
+        "snippet": "const result = await breaker.fire({ amount, idempotency_key });\n// éxito → confirmación · fallo → liberación del cupo"
       },
       {
         "path": "services/notification-service/src/handler.js",
-        "title": "FaaS 2 — Mongo + WhatsApp mock",
-        "snippet": "await col.insertOne({ tenant_id, channel, status: \"QUEUED\", ... });\nawait sendWhatsApp(...);\n// outcome CONFIRMED → scheduling"
+        "title": "Aviso al cliente",
+        "snippet": "await col.insertOne({ tenant_id, channel, status: \"QUEUED\", ... });\nawait sendWhatsApp(...);"
       }
     ]
   },
   "switch-odonto": {
-    "title": "Aislamiento multi-tenant",
+    "title": "Aislamiento entre empresas",
     "files": [
       {
         "path": "contracts/sql/005_rls_policies.sql",
-        "title": "RLS FORCE en catalog/appointments",
-        "snippet": "USING (tenant_id = current_setting('app.current_tenant_id')::UUID)\n-- App role nebulastack_app (NOBYPASSRLS)\n-- CDA no ve filas de odonto y viceversa"
+        "title": "Políticas de datos por inquilino",
+        "snippet": "USING (tenant_id = current_setting('app.current_tenant_id')::UUID)\n-- Rol de aplicación sin bypass de seguridad"
       },
       {
         "path": "contracts/seeds/seed_tenants.sql",
-        "title": "Dos tenants Colombia",
+        "title": "Dos clientes Colombia",
         "snippet": "slug=cda → CDA Colombia\nslug=odonto → Clínica Odontológica Sonrisa Andina"
       }
     ]
   },
   "hold-odonto": {
-    "title": "Happy path odontología",
+    "title": "Misma plataforma, otra vertical",
     "files": [
       {
         "path": "contracts/seeds/seed_catalog.sql",
-        "title": "Catálogo odonto",
+        "title": "Catálogo odontológico",
         "snippet": "Limpieza dental → 120000 COP\nValoración ortodoncia → 90000 COP"
       },
       {
         "path": "docs/architecture/fsm-appointment.md",
-        "title": "FSM en inglés",
-        "snippet": "CREATED → HOLD → PAID → CONFIRMED\nTerminales: EXPIRED, CANCELLED"
+        "title": "Ciclo de vida de la cita",
+        "snippet": "HOLD → PAID → CONFIRMED\nSi algo falla: CANCELLED"
       }
     ]
   },
   "saga-fail": {
-    "title": "Compensación Saga",
+    "title": "Compensación cuando el pago falla",
     "files": [
       {
         "path": "services/external-mocks/src/index.js",
-        "title": "Mock 666000 → 402",
+        "title": "Simulación de rechazo",
         "snippet": "if (amount === 666 || amount === 666000) {\n  return 402 INSUFFICIENT_FUNDS\n}"
       },
       {
         "path": "services/scheduling-engine/src/main.py",
-        "title": "ReleaseSlot / CANCELLED",
+        "title": "Liberación del cupo",
         "snippet": "outcome FAILED → status CANCELLED\nawait redis_client.delete(redis_key)"
       }
     ]
   },
   "circuit-breaker": {
-    "title": "Táctica QA: Circuit Breaker",
+    "title": "Resiliencia ante pasarela lenta",
     "files": [
       {
         "path": "services/payment-orchestrator/src/handler.js",
-        "title": "Opossum CB",
-        "snippet": "timeout: 3000,\nerrorThresholdPercentage: 50,\nresetTimeout: 10000\nfallback → CIRCUIT_BREAKER_OPEN_OR_TIMEOUT"
+        "title": "Corte automático",
+        "snippet": "timeout: 3000,\nerrorThresholdPercentage: 50,\nresetTimeout: 10000"
       },
       {
         "path": "services/external-mocks/src/index.js",
-        "title": "Mock 999000 → delay 5s + 504",
+        "title": "Simulación de demora",
         "snippet": "if (amount === 999 || amount === 999000) {\n  await sleep(5000); return 504\n}"
       }
     ]
   },
+  "double-booking": {
+    "title": "Anti doble reserva con Redis",
+    "files": [
+      {
+        "path": "services/scheduling-engine/src/main.py",
+        "title": "Lock atómico del cupo",
+        "snippet": "acquired = await redis_client.set(\n  f\"tenant:{tenant_id}:slot:{service_id}:{start}\",\n  hold_token, nx=True, ex=HOLD_TTL\n)\n# segundo hold concurrente → 409"
+      },
+      {
+        "path": "docs/qas-demo.md",
+        "title": "Procedimiento QAS",
+        "snippet": "Dos POST /hold al mismo slot\nEsperado: 201 + 409 Conflict"
+      }
+    ]
+  },
   "closing": {
-    "title": "Checklist Delivery 4",
+    "title": "Valor entregado",
     "files": [
       {
         "path": "docs/baseline-d4.md",
-        "title": "Evidencia",
-        "snippet": "✓ E2E hold→pay→notify\n✓ ≥2 FaaS\n✓ Multi-persistencia PG+Redis+Mongo\n✓ Circuit Breaker demostrable\n✓ Contenedores + IaC Terraform\n✓ Multi-tenant RLS (CDA vs Odonto)"
+        "title": "Capacidades Delivery 4",
+        "snippet": "✓ Flujo completo agenda → pago → aviso\n✓ Aislamiento multi-empresa\n✓ Redis anti-overbooking\n✓ Saga + circuit breaker\n✓ FaaS pago y notificación"
       },
       {
-        "path": "infra/terraform/README.md",
-        "title": "IaC sin secretos en git",
-        "snippet": "TF_VAR_db_password / TF_VAR_jwt_secret\nMódulos: network, rds, redis, sqs, ecr, ecs, lambda"
+        "path": "deploy/demo/app.js",
+        "title": "Portal demo multi-tenant",
+        "snippet": "Picker CDA / Sonrisa Andina\nUI branded + consola en vivo\nGuion presentador + chips D4"
       }
     ]
   }

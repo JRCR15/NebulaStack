@@ -20,7 +20,22 @@
 }
 ```
 
-## Issue locally
+## Workspace login (password grant)
+
+Usuarios de prueba para la UI (`http://localhost:3000`):
+
+| Email | Password | Tenant |
+|-------|----------|--------|
+| `admin@cda.example` | `Demo123!` | `cda` |
+| `admin@odonto.example` | `Demo123!` | `odonto` |
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/auth/token \
+  -H 'content-type: application/json' \
+  -d '{"grant_type":"password","tenant_slug":"cda","username":"admin@cda.example","password":"Demo123!"}'
+```
+
+## Issue locally (client_credentials — scripts E2E)
 
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/auth/token \
