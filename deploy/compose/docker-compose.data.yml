@@ -1,0 +1,102 @@
+# Shared data plane for blue-green demos (one instance).
+# Usage: docker compose -f docker-compose.data.yml -p nebulastack-data up -d
+name: nebulastack-data
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: nebulastack-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nebulastack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local}
+      POSTGRES_DB: ${POSTGRES_DB:-nebulastack}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../contracts/sql/001_extensions.sql:/docker-entrypoint-initdb.d/001_extensions.sql:ro
+      - ../../contracts/sql/002_tenants.sql:/docker-entrypoint-initdb.d/002_tenants.sql:ro
+      - ../../contracts/sql/003_catalog.sql:/docker-entrypoint-initdb.d/003_catalog.sql:ro
+      - ../../contracts/sql/004_appointments_outbox.sql:/docker-entrypoint-initdb.d/004_appointments_outbox.sql:ro
+      - ../../contracts/sql/005_rls_policies.sql:/docker-entrypoint-initdb.d/005_rls_policies.sql:ro
+      - ../../contracts/sql/006_app_role.sql:/docker-entrypoint-initdb.d/006_app_role.sql:ro
+      - ../../contracts/seeds/seed_tenants.sql:/docker-entrypoint-initdb.d/010_seed_tenants.sql:ro
+      - ../../contracts/seeds/seed_catalog.sql:/docker-entrypoint-initdb.d/011_seed_catalog.sql:ro
+    networks:
+      nebulastack-net:
+        aliases: [postgres]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nebulastack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: nebulastack-redis
+    ports:
+      - "6379:6379"
+    networks:
+      nebulastack-net:
+        aliases: [redis]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: nebulastack-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      nebulastack-net:
+        aliases: [rabbitmq]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  mongo:
+    image: mongo:6
+    container_name: nebulastack-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    networks:
+      nebulastack-net:
+        aliases: [mongo]
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  external-mocks:
+    image: nebulastack/external-mocks:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/external-mocks
+    container_name: nebulastack-external-mocks
+    ports:
+      - "8090:8090"
+    networks:
+      nebulastack-net:
+        aliases: [external-mocks]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  mongodata:
+
+networks:
+  nebulastack-net:
+    external: true
+    name: nebulastack-net

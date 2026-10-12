@@ -9,6 +9,7 @@ Prototype that materializes the Team B design (D1–D3) for Delivery 4:
 - At least two FaaS components: `payment-orchestrator`, `notification-service`.
 - Persistence paradigms: PostgreSQL (+ RLS), Redis, MongoDB, message broker.
 - Containers locally via Docker Compose; AWS via Terraform (no hardcoded secrets).
+- **Build & Deployment:** blue-green cutover demonstrable locally (edge nginx + blue/green app fleets); single-stack Compose remains the dev/E2E path. See [deployment-blue-green.md](deployment-blue-green.md).
 - Interactive HTML demo at `http://localhost:3000` with two Colombian tenants.
 
 ## Frozen decisions
@@ -57,9 +58,10 @@ Circuit Breaker: probe `999000` → mock delay 5s / 504; breaker timeout 3s → 
 
 ## Delivery evidence checklist
 
-- [ ] `docker compose up` healthy stack (+ `demo-ui` on :3000)
+- [ ] `docker compose up` healthy stack (+ `demo-ui` on :3000) **or** `bg-up.ps1` via edge
 - [ ] HTML demo steps CDA → Odonto → compensation → CB
-- [ ] E2E script green
+- [ ] E2E script green (single-stack)
 - [ ] Circuit Breaker reproducible
-- [ ] Terraform modules + `TF_VAR_*` secrets workflow
+- [ ] Blue-green: `bg-deploy` switches standby; `bg-switch` rollback
+- [ ] Terraform: `infra/terraform/validate.ps1` (+ `TF_VAR_*` workflow; no paid apply required)
 - [ ] Repository link + README demo steps

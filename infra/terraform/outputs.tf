@@ -24,6 +24,6 @@ output "redis_endpoint" {
 }
 
 output "jwt_secret_configured" {
-  value       = length(var.jwt_secret) > 0
+  value       = nonsensitive(length(var.jwt_secret) > 0)
   description = "True when TF_VAR_jwt_secret was provided (value never outputted)"
 }

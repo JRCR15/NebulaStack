@@ -1,0 +1,27 @@
+# Public edge: :3000 (UI) and :8080 (API) → active color fleet.
+# Usage: docker compose -f docker-compose.edge.yml -p nebulastack-edge up -d
+
+name: nebulastack-edge
+
+services:
+  edge:
+    image: nginx:1.27-alpine
+    container_name: nebulastack-edge
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+    volumes:
+      - ./edge/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./edge/active-color:/etc/nginx/active-color:ro
+    networks:
+      - nebulastack-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  nebulastack-net:
+    external: true
+    name: nebulastack-net

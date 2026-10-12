@@ -1,3 +1,7 @@
+# Blue-green (design): ALB listener flips between target groups blue/green for ECS
+# (and/or Lambda aliases). Local classroom demo uses Compose edge nginx instead —
+# see docs/deployment-blue-green.md. Do not require a paid apply to show cutover.
+
 module "network" {
   source       = "./modules/network"
   project_name = var.project_name

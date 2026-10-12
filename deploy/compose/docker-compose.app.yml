@@ -1,0 +1,140 @@
+# App plane for one color (blue|green). No host ports for API/UI (edge publishes them).
+# Usage:
+#   $env:DEPLOY_COLOR='blue'; $env:IMAGE_TAG='abc1234'
+#   docker compose -f docker-compose.app.yml -p nebulastack-blue up -d --build
+#
+# Requires: external network nebulastack-net + data plane healthy.
+# Project name must be set by CLI: -p nebulastack-blue | nebulastack-green
+
+services:
+  auth-tenant-service:
+    image: nebulastack/auth-tenant-service:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/auth-tenant-service
+    container_name: ${DEPLOY_COLOR:-blue}-auth-tenant-service
+    environment:
+      DATABASE_URL: postgres://nebulastack_app:change-me-app@postgres:5432/${POSTGRES_DB:-nebulastack}
+      JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-min-32-chars-long}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.nebulastack.local}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-nebulastack-api}
+    networks: [nebulastack-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  catalog-service:
+    image: nebulastack/catalog-service:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/catalog-service
+    container_name: ${DEPLOY_COLOR:-blue}-catalog-service
+    environment:
+      DATABASE_URL: postgres://nebulastack_app:change-me-app@postgres:5432/${POSTGRES_DB:-nebulastack}
+    networks: [nebulastack-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  scheduling-engine:
+    image: nebulastack/scheduling-engine:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/scheduling-engine
+    container_name: ${DEPLOY_COLOR:-blue}-scheduling-engine
+    environment:
+      DATABASE_URL: postgres://nebulastack_app:change-me-app@postgres:5432/${POSTGRES_DB:-nebulastack}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-120}
+    networks: [nebulastack-net]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  payment-orchestrator:
+    image: nebulastack/payment-orchestrator:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/payment-orchestrator
+    container_name: ${DEPLOY_COLOR:-blue}-payment-orchestrator
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      MOCK_GATEWAY_URL: ${MOCK_GATEWAY_URL:-http://external-mocks:8090}
+    networks: [nebulastack-net]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8084/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  notification-service:
+    image: nebulastack/notification-service:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/notification-service
+    container_name: ${DEPLOY_COLOR:-blue}-notification-service
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672/}
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo:27017/nebulastack}
+      MOCK_GATEWAY_URL: ${MOCK_GATEWAY_URL:-http://external-mocks:8090}
+      SCHEDULING_URL: http://${DEPLOY_COLOR:-blue}-scheduling-engine:8081
+    networks: [nebulastack-net]
+    depends_on:
+      scheduling-engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8085/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api-gateway:
+    image: nebulastack/api-gateway:${IMAGE_TAG:-local}
+    build:
+      context: ../../services/api-gateway
+    container_name: ${DEPLOY_COLOR:-blue}-api-gateway
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:-change-me-jwt-secret-min-32-chars-long}
+      JWT_ISSUER: ${JWT_ISSUER:-https://auth.nebulastack.local}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-nebulastack-api}
+      RATE_LIMIT_RPS: ${RATE_LIMIT_RPS:-100}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      AUTH_URL: http://${DEPLOY_COLOR:-blue}-auth-tenant-service:8082
+      CATALOG_URL: http://${DEPLOY_COLOR:-blue}-catalog-service:8083
+      SCHEDULING_URL: http://${DEPLOY_COLOR:-blue}-scheduling-engine:8081
+    networks: [nebulastack-net]
+    depends_on:
+      auth-tenant-service:
+        condition: service_healthy
+      catalog-service:
+        condition: service_healthy
+      scheduling-engine:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  demo-ui:
+    image: nginx:1.27-alpine
+    container_name: ${DEPLOY_COLOR:-blue}-demo-ui
+    volumes:
+      - ../../deploy/demo:/usr/share/nginx/html:ro
+    networks: [nebulastack-net]
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  nebulastack-net:
+    external: true
+    name: nebulastack-net

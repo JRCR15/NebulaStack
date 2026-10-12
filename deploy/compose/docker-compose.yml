@@ -1,3 +1,7 @@
+# Dev / E2E single-stack (all-in-one). Prefer this for local development and
+# e2e-hold-pay-notify scripts. For Unit-6 blue-green demos use:
+#   .\deploy\scripts\bg-up.ps1
+# See docs/deployment-blue-green.md
 name: nebulastack
 
 services:

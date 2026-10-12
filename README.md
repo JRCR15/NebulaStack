@@ -6,11 +6,26 @@ Multi-tenant B2B scheduling SaaS prototype (Delivery 4). Contract-first monorepo
 
 Prerequisites: Docker Desktop, Compose v2.
 
+### Dev / E2E single-stack
+
 ```powershell
 cd deploy/compose
 copy .env.example .env   # if needed
 docker compose down -v   # recreate DB when seeds change
 docker compose up --build -d
+```
+
+### Blue-green deployment demo (Unit 6)
+
+Traffic via edge nginx; two app fleets share one data plane. See [docs/deployment-blue-green.md](docs/deployment-blue-green.md).
+
+```powershell
+# Stop single-stack first if :3000/:8080 are busy
+cd deploy\compose; docker compose down; cd ..\..
+.\deploy\scripts\bg-up.ps1
+.\deploy\scripts\bg-deploy.ps1          # build standby (git SHA), switch
+.\deploy\scripts\bg-switch.ps1 -Color blue   # rollback
+.\deploy\scripts\bg-status.ps1
 ```
 
 Open the presentation: **[http://localhost:3000](http://localhost:3000)**
@@ -80,4 +95,4 @@ See:
 
 ## Terraform / secrets
 
-See [infra/terraform/README.md](infra/terraform/README.md). Never commit `.env`, `*.tfvars`, or plaintext passwords.
+AWS IaC is under [infra/terraform](infra/terraform). Classroom: `.\infra\terraform\validate.ps1` (no paid `apply` required). Full blue-green story: [docs/deployment-blue-green.md](docs/deployment-blue-green.md). Never commit `.env`, `*.tfvars`, or plaintext passwords.
