@@ -2,7 +2,7 @@
 
 Provisions AWS foundation modules for NebulaStack: VPC/network, ECR, optional RDS, ElastiCache Redis, SQS broker, ECS service skeleton, Lambda FaaS.
 
-## Classroom workflow (no paid apply required)
+##workflow (no paid apply required)
 
 Terraform CLI is free; **running the stack on AWS is not** (NAT Gateway, RDS, ElastiCache, Fargate, Lambda+SQS traffic, etc. typically incur charges).
 
@@ -22,7 +22,7 @@ $env:TF_VAR_jwt_secret = "use-a-long-random-secret"
 terraform plan -var-file=env/local.tfvars.example
 ```
 
-**Do not** treat a full `terraform apply` of staging/prod as mandatory for classroom. Prefer the **local blue-green** demo: [docs/deployment-blue-green.md](../../docs/deployment-blue-green.md).
+**Do not** treat a full `terraform apply` of staging/prod as mandatory for . Prefer the **local blue-green** demo: [docs/deployment-blue-green.md](../../docs/deployment-blue-green.md).
 
 ### Cost hotspots (avoid Free Tier assumptions)
 
@@ -77,7 +77,7 @@ terraform plan -var-file=env/staging.tfvars
 
 Copy `env/staging.tfvars.example` → `env/staging.tfvars` (gitignored via `*.tfvars`).
 
-Prefer AWS Secrets Manager / SSM for long-lived environments; variables above are for classroom experiments.
+Prefer AWS Secrets Manager / SSM for long-lived environments; variables above are for  experiments.
 
 ## Immutable artifacts
 
@@ -92,4 +92,4 @@ Pass `image_tag = SHA` into Terraform / ECS task definitions. Local blue-green s
 
 ## Optional: LocalStack
 
-Not required. If used for experiments, keep it optional and never block classroom demos on it.
+Not required. If used for experiments, keep it optional and never block  demos on it.
