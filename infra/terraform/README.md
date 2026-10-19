@@ -1,4 +1,4 @@
-# NebulaStack Terraform (AWS IaC — design / classroom)
+# NebulaStack Terraform (AWS IaC — design)
 
 Provisions AWS foundation modules for NebulaStack: VPC/network, ECR, optional RDS, ElastiCache Redis, SQS broker, ECS service skeleton, Lambda FaaS.
 
